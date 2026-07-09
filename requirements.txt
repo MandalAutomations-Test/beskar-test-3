@@ -1,0 +1,24 @@
+# Fine-tuning stack for gpt-oss-20b with Unsloth (4-bit LoRA).
+# Requires: Linux or WSL2, NVIDIA GPU with CUDA 12.x, Python 3.10-3.12.
+# gpt-oss needs torch >= 2.8 and triton >= 3.4.
+torch>=2.8.0
+torchvision
+triton>=3.4.0; platform_system == "Linux"
+# Triton MXFP4 kernels used by gpt-oss (not published to PyPI, Linux only)
+triton_kernels @ git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels ; platform_system == "Linux"
+
+unsloth[base]
+unsloth_zoo[base]
+transformers>=4.55.0
+trl
+peft
+accelerate
+bitsandbytes
+
+datasets
+pandas
+pyarrow
+matplotlib
+
+# Downloads the Kaggle dataset automatically when not running on Kaggle
+kagglehub

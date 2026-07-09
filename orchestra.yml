@@ -1,0 +1,32 @@
+name: beskar-test-3
+
+env:
+  OUTPUT_DIR: /scratch/workspace/artifacts
+  # Kept small so a pipeline run finishes in one GPU session; raise for a real run.
+  NUM_SAMPLES: "5000"
+  MAX_STEPS: "50"
+  MODEL_NAME: unsloth/gpt-oss-20b
+
+steps:
+  # The worker's bootstrap already pip-installs requirements.txt before the
+  # pipeline starts; this re-run is a fast no-op there and keeps the pipeline
+  # self-sufficient anywhere else.
+  - name: Install dependencies
+    run: pip install --no-cache-dir -r requirements.txt
+
+  - name: Show environment
+    run: |
+      python --version
+      nvidia-smi || echo "nvidia-smi unavailable"
+      python -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda, 'available', torch.cuda.is_available())"
+      echo "model=$MODEL_NAME samples=$NUM_SAMPLES steps=$MAX_STEPS out=$OUTPUT_DIR"
+
+  - name: Train and evaluate
+    run: python main.py
+
+  - name: Verify artifacts
+    run: |
+      test -d "$OUTPUT_DIR/gpt-oss-arabic-finetuned-v1"
+      test -f "$OUTPUT_DIR/log_history.pt"
+      test -f "$OUTPUT_DIR/training_loss.png"
+      echo "artifacts present in $OUTPUT_DIR"
