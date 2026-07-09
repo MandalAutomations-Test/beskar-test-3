@@ -6,13 +6,30 @@ env:
   NUM_SAMPLES: "5000"
   MAX_STEPS: "50"
   MODEL_NAME: unsloth/gpt-oss-20b
+  # triton_kernels is pinned to a commit so runs are reproducible; bump when
+  # updating triton. It lives here (not requirements.txt) because pip has no
+  # retry for git clones and the triton repo is large enough that GitHub
+  # sometimes resets the connection mid-fetch, which would kill the bootstrap.
+  TRITON_KERNELS_REF: 8c8f04f6423311f3bee6dfbdccf5c6c38a8550df
 
 steps:
   # The worker's bootstrap already pip-installs requirements.txt before the
   # pipeline starts; this re-run is a fast no-op there and keeps the pipeline
   # self-sufficient anywhere else.
   - name: Install dependencies
-    run: pip install --no-cache-dir -r requirements.txt
+    run: |
+      pip install --no-cache-dir -r requirements.txt
+      installed=0
+      for attempt in 1 2 3; do
+        if pip install --no-cache-dir \
+          "triton_kernels @ git+https://github.com/triton-lang/triton.git@${TRITON_KERNELS_REF}#subdirectory=python/triton_kernels ; platform_system == 'Linux'"; then
+          installed=1
+          break
+        fi
+        echo "triton_kernels install failed (attempt $attempt/3), retrying in 15s..."
+        sleep 15
+      done
+      test "$installed" = "1"
 
   - name: Show environment
     run: |
