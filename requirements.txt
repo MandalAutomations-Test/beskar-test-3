@@ -4,8 +4,10 @@
 torch>=2.8.0
 torchvision
 triton>=3.4.0; platform_system == "Linux"
-# Triton MXFP4 kernels used by gpt-oss (not published to PyPI, Linux only)
-triton_kernels @ git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels ; platform_system == "Linux"
+# Triton MXFP4 kernels used by gpt-oss (not published to PyPI, Linux only).
+# Not listed here: installing it requires git-cloning the full triton repo,
+# which is huge and flaky enough to kill the worker bootstrap. It is installed
+# with retries in the "Install dependencies" step of orchestra.yml instead.
 
 unsloth[base]
 unsloth_zoo[base]
