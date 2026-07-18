@@ -1,4 +1,13 @@
 
+import warnings
+
+# Suppress deprecation noise from torch internals before any heavy imports.
+warnings.filterwarnings(
+    "ignore",
+    message="torch._dynamo.config.inline_inbuilt_nn_modules is deprecated",
+    category=FutureWarning,
+)
+
 # Unsloth must be imported before transformers/trl so its patches apply.
 from unsloth import FastLanguageModel
 
@@ -46,7 +55,57 @@ def find_dataset_parquet() -> str:
     return parquets[0]
 
 
+_BYTES_PER_GB = 1024 ** 3
+# Overhead factor for VRAM estimation: raw 4-bit weight storage (0.5) plus
+# approximately 0.1 bytes/param for LoRA activations, KV-cache, and optimizer
+# state that lives on the GPU even with 4-bit quantization.
+_VRAM_OVERHEAD_BYTES_PER_PARAM = 0.6
+# Rough map of common model sizes (billions of parameters) from the model name.
+_MODEL_SIZE_HINTS = {
+    "0.5b": 0.5, "1b": 1, "1.5b": 1.5, "3b": 3, "4b": 4, "7b": 7,
+    "8b": 8, "9b": 9, "11b": 11, "13b": 13, "14b": 14, "20b": 20,
+    "32b": 32, "70b": 70,
+}
+
+
+def _estimate_model_params_b(model_name: str) -> float | None:
+    """Return estimated parameter count in billions from the model name, or None."""
+    lower = model_name.lower()
+    for suffix, size in _MODEL_SIZE_HINTS.items():
+        if suffix in lower:
+            return size
+    return None
+
+
+def _check_vram(model_name: str) -> None:
+    """Warn if the available VRAM is likely too small for the requested model."""
+    if not torch.cuda.is_available():
+        return
+    params_b = _estimate_model_params_b(model_name)
+    if params_b is None:
+        return
+    free_gb = round(torch.cuda.mem_get_info()[0] / _BYTES_PER_GB, 2)
+    total_gb = round(torch.cuda.get_device_properties(0).total_memory / _BYTES_PER_GB, 2)
+    # Minimum GPU memory: 4-bit weights + LoRA activations + optimizer buffers.
+    min_needed_gb = round(params_b * 1e9 * _VRAM_OVERHEAD_BYTES_PER_PARAM / _BYTES_PER_GB, 1)
+    print(
+        f"VRAM check: {model_name!r} ~{params_b}B params -> "
+        f"needs >={min_needed_gb} GB; GPU has {free_gb}/{total_gb} GB free."
+    )
+    if free_gb < min_needed_gb:
+        print(
+            f"WARNING: The model likely won't fit in GPU memory "
+            f"({free_gb} GB free < {min_needed_gb} GB needed).\n"
+            "  * Use a smaller model (e.g. unsloth/gpt-oss-8b) or a GPU with more VRAM.\n"
+            "  * The script will continue and attempt CPU offloading, but training "
+            "will be very slow."
+        )
+
+
 def load_model():
+    _check_vram(MODEL_NAME)
+    print(f"Loading model {MODEL_NAME!r} -- this may take several minutes on first run "
+          "(weights are downloaded and kernels are compiled for your GPU)...")
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=MODEL_NAME,
         dtype=None,  # None for auto detection
@@ -54,6 +113,7 @@ def load_model():
         load_in_4bit=True,  # 4-bit quantization to reduce memory
         full_finetuning=False,
     )
+    print("Model loaded successfully.")
 
     model = FastLanguageModel.get_peft_model(
         model,
