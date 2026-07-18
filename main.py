@@ -1,20 +1,3 @@
-"""Fine-tune OpenAI's gpt-oss-20b on an Arabic instruct dataset using Unsloth + LoRA.
-
-Converted from a Kaggle notebook into a runnable script.
-
-Requirements:
-  - Linux (or WSL2) with an NVIDIA GPU (>= 16 GB VRAM recommended) and CUDA 12.x
-  - pip install -r requirements.txt
-
-Usage:
-  python main.py
-
-The dataset is downloaded automatically from Kaggle via kagglehub unless
-DATA_PATH points to a local parquet file:
-  DATA_PATH=/path/to/train.parquet python main.py
-
-To use a gated/private Hugging Face model, export HF_TOKEN before running.
-"""
 
 # Unsloth must be imported before transformers/trl so its patches apply.
 from unsloth import FastLanguageModel
@@ -29,7 +12,7 @@ from datasets import Dataset
 from transformers import TextStreamer
 from trl import SFTConfig, SFTTrainer
 
-MODEL_NAME = os.environ.get("MODEL_NAME", "unsloth/gpt-oss-20b")
+MODEL_NAME = os.environ.get("MODEL_NAME", "unsloth/Qwen3.5-0.8B-GGUF")
 KAGGLE_DATASET = "omgits0mar/arabic-instruct-chatbot-dataset"
 MAX_SEQ_LENGTH = 1080
 NUM_SAMPLES = int(os.environ.get("NUM_SAMPLES", "5000"))
@@ -39,7 +22,7 @@ MAX_STEPS = int(os.environ.get("MAX_STEPS", "50"))
 # as a single artifact folder; defaults to the current directory for local runs.
 ARTIFACT_DIR = Path(os.environ.get("OUTPUT_DIR", "."))
 CHECKPOINT_DIR = ARTIFACT_DIR / "outputs"
-FINAL_MODEL_DIR = ARTIFACT_DIR / "gpt-oss-arabic-finetuned-v1"
+FINAL_MODEL_DIR = ARTIFACT_DIR / "Qwen3.5-0.8B-GGUF-finetuned-v1"
 LOG_HISTORY_PATH = ARTIFACT_DIR / "log_history.pt"
 LOSS_PLOT_PATH = ARTIFACT_DIR / "training_loss.png"
 
