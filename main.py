@@ -73,7 +73,6 @@ def find_dataset_parquet() -> str:
 
 
 _BYTES_PER_GB = 1024 ** 3
-_BYTES_PER_PARAM_4BIT = 0.5  # 4-bit = 0.5 bytes per parameter
 # Overhead factor for VRAM estimation: raw 4-bit weight storage (0.5) plus
 # approximately 0.1 bytes/param for LoRA activations, KV-cache, and optimizer
 # state that lives on the GPU even with 4-bit quantization.
